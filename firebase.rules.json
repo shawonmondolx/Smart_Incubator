@@ -1,0 +1,79 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "calibrationLogs": {
+      "$deviceId": {
+        ".read": "auth != null && auth.uid == root.child('devices').child($deviceId).child('ownerUid').val()",
+        "$logId": {
+          ".write": "auth != null && auth.uid == root.child('devices').child($deviceId).child('deviceUid').val()",
+          ".validate": "newData.hasChildren(['event', 'firmware', 'task', 'calibrationSession', 'calibrationStatus', 'temperature', 'humidity', 'targetTemperature', 'targetHumidity', 'circulationFan1', 'circServoOpen', 'circServoAngle'])"
+        }
+      }
+    },
+    "incubationHistory": {
+      "$deviceId": {
+        ".read": "auth != null && auth.uid == root.child('devices').child($deviceId).child('ownerUid').val()",
+        "$batchId": {
+          "record": {
+            ".write": "auth != null && auth.uid == root.child('devices').child($deviceId).child('deviceUid').val()",
+            ".validate": "newData.hasChildren(['batchId', 'firmware', 'status', 'mode', 'profileId', 'startedAt', 'startDayOffset', 'totalDays', 'lockdownDay', 'finalCycleDay']) && newData.child('batchId').val() == $batchId && newData.child('status').isString() && (newData.child('status').val() == 'active' || newData.child('status').val() == 'completed' || newData.child('status').val() == 'aborted') && newData.child('startedAt').isNumber() && newData.child('startDayOffset').isNumber() && newData.child('startDayOffset').val() >= 0 && newData.child('startDayOffset').val() < newData.child('totalDays').val()"
+          },
+          "events": {
+            "$eventId": {
+              ".write": "auth != null && auth.uid == root.child('devices').child($deviceId).child('deviceUid').val()",
+              ".validate": "newData.hasChildren(['event', 'capturedAt', 'cycleDay', 'humidifier']) && newData.child('event').isString() && newData.child('capturedAt').isNumber() && newData.child('cycleDay').isNumber() && newData.child('humidifier').isBoolean()"
+            }
+          }
+        }
+      }
+    },
+    "devices": {
+      "incubator-01": {
+        ".read": "auth != null && (auth.uid == data.child('ownerUid').val() || auth.uid == data.child('deviceUid').val())",
+        "deviceUid": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1' && newData.val() == auth.uid"
+        },
+        "ownerUid": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1' && (!newData.exists() || newData.isString())"
+        },
+        "claimCode": {
+          ".read": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || auth.uid == data.parent().child('deviceUid').val())",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'"
+        },
+        "claimRequest": {
+          ".read": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'",
+          ".write": "auth != null && ((newData.exists() && newData.child('ownerUid').val() == auth.uid && (!data.parent().child('ownerUid').exists() || data.parent().child('ownerUid').val() == auth.uid)) || (!newData.exists() && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'))"
+        },
+        "status": {
+          ".read": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || auth.uid == data.parent().child('deviceUid').val())",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'"
+        },
+        "desired": {
+          ".read": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || auth.uid == data.parent().child('deviceUid').val())",
+          ".write": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || (auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1' && !newData.exists()))",
+          ".validate": "newData.hasChildren(['cycleActive', 'version']) && newData.child('cycleActive').isBoolean() && newData.child('version').isNumber() && (!newData.child('action').exists() || newData.child('action').isString()) && (!newData.child('startDayOffset').exists() || (newData.child('startDayOffset').isNumber() && newData.child('startDayOffset').val() >= 0 && newData.child('startDayOffset').val() <= 34))"
+        },
+        "reported": {
+          ".read": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || auth.uid == data.parent().child('deviceUid').val())",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'"
+        },
+        "telemetry": {
+          ".read": "auth != null && auth.uid == data.parent().child('ownerUid').val()",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'"
+        },
+        "testCommand": {
+          ".read": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || auth.uid == data.parent().child('deviceUid').val())",
+          ".write": "auth != null && (auth.uid == data.parent().child('ownerUid').val() || (auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1' && !newData.exists()))",
+          ".validate": "newData.hasChildren(['testSessionId', 'enabled', 'fan1', 'fan3', 'heater', 'heaterPwm', 'exhaustPwm', 'humidifier', 'atmosphereTestEnabled', 'atmosphereTargetTemperature', 'atmosphereTargetHumidity', 'servoTestEnabled', 'servoClosedAngle', 'servoOpenAngle', 'circServoTestEnabled', 'circServoClosedAngle', 'circServoOpenAngle', 'version', 'requestedBy']) && newData.child('testSessionId').isString() && newData.child('enabled').isBoolean() && newData.child('fan1').isBoolean() && newData.child('fan3').isBoolean() && newData.child('heater').isBoolean() && newData.child('humidifier').isBoolean() && newData.child('atmosphereTestEnabled').isBoolean() && newData.child('servoTestEnabled').isBoolean() && newData.child('circServoTestEnabled').isBoolean() && (!newData.hasChild('servoAction') || (newData.child('servoAction').isString() && (newData.child('servoAction').val() == '' || newData.child('servoAction').val() == 'open' || newData.child('servoAction').val() == 'close'))) && newData.child('heaterPwm').isNumber() && newData.child('heaterPwm').val() >= 0 && newData.child('heaterPwm').val() <= 255 && newData.child('exhaustPwm').isNumber() && newData.child('exhaustPwm').val() >= 0 && newData.child('exhaustPwm').val() <= 255 && newData.child('servoClosedAngle').isNumber() && newData.child('servoClosedAngle').val() >= 0 && newData.child('servoClosedAngle').val() <= 180 && newData.child('servoOpenAngle').isNumber() && newData.child('servoOpenAngle').val() >= 0 && newData.child('servoOpenAngle').val() <= 180 && newData.child('circServoClosedAngle').isNumber() && newData.child('circServoClosedAngle').val() >= 0 && newData.child('circServoClosedAngle').val() <= 180 && newData.child('circServoOpenAngle').isNumber() && newData.child('circServoOpenAngle').val() >= 0 && newData.child('circServoOpenAngle').val() <= 180 && newData.child('atmosphereTargetTemperature').isNumber() && newData.child('atmosphereTargetTemperature').val() >= 35 && newData.child('atmosphereTargetTemperature').val() <= 40 && newData.child('atmosphereTargetHumidity').isNumber() && newData.child('atmosphereTargetHumidity').val() >= 35 && newData.child('atmosphereTargetHumidity').val() <= 80 && newData.child('version').isNumber() && newData.child('requestedBy').val() == auth.uid"
+        },
+        "testTelemetry": {
+          ".read": "auth != null && auth.uid == data.parent().child('ownerUid').val()",
+          ".write": "auth != null && auth.uid == 'QLY2SB9qvleL6jhw02SgsOKSLUu1'"
+        }
+      }
+    }
+  }
+}

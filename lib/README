@@ -1,0 +1,710 @@
+SMART INCUBATOR MOTHERBOARD WIRING AND TEST GUIDE
+=================================================
+
+This guide describes the current firmware pin map and the safe order for
+connecting and testing every part. Read the complete guide before connecting
+the heater or any high-current load.
+
+
+1. IMPORTANT SAFETY RULES
+-------------------------
+
+1. Disconnect USB and every external power supply before changing wires.
+2. ESP32 GPIO pins are signal pins only. Never power a fan, heater, motor,
+   humidifier, relay coil, or servo directly from a GPIO pin.
+3. Use 3.3 V for DHT22, DS18B20, and compatible RTC sensor power.
+4. Use separate, correctly rated supplies for the heater, fans, servo,
+   humidifier, and egg-turning motor.
+5. Non-isolated drivers must share signal ground with the ESP32.
+6. Put a correctly rated fuse close to each load power supply.
+7. Put an independent thermal fuse or mechanical thermostat in series with
+   the PTC heater. Firmware is not a replacement for hardware protection.
+8. Do not use the low-voltage wiring in this guide for mains AC equipment.
+9. Use thick wire and rated terminals for heater and motor current. Do not use
+   a breadboard for high-current paths.
+10. Run the incubator empty for at least 48 hours before adding eggs.
+
+
+2. COMPLETE ESP32 PIN MAP
+-------------------------
+
+INPUTS AND SENSORS
+
+GPIO 4  : DHT22 at the small air intake
+GPIO 5  : DHT22 in the middle of the eggs
+GPIO 16 : DS18B20 in the middle of the eggs, main temperature control
+GPIO 17 : DS18B20 attached to the PTC heater, overheat protection
+GPIO 19 : Normally-closed lid limit switch
+GPIO 21 : I2C SDA for DS1307 RTC
+GPIO 22 : I2C SCL for DS1307 RTC
+GPIO 0  : ESP32 BOOT button and 8-second factory-reset button
+
+OUTPUTS
+
+GPIO 13 : Exhaust vent servo signal
+GPIO 14 : Egg tray roller relay/driver signal
+GPIO 25 : Circulation fan 1 driver signal
+GPIO 26 : Circulation fan 2 driver signal
+GPIO 27 : Exhaust fan PWM driver signal, 1 kHz
+GPIO 32 : PTC heater PWM driver signal, 1 kHz
+GPIO 33 : Humidifier relay/driver signal
+
+IDLE OUTPUT LEVELS
+
+GPIO 14, 25, 26, 27, 32, and 33 are OFF after boot. Digital outputs use:
+
+OFF = approximately 0 V
+ON  = approximately 3.3 V
+
+The exhaust and heater PWM outputs may show an average voltage between 0 V
+and 3.3 V when their sliders are between 0% and 100%.
+
+
+2A. REQUIRED COMPONENTS
+-----------------------
+
+SENSORS AND INPUTS
+
+2 x DHT22 temperature/humidity sensors
+2 x DS18B20 temperature probes
+2 x 4.7 kOhm DS18B20 DATA pull-up resistors
+2 x 4.7-10 kOhm DHT22 DATA pull-up resistors for bare sensors
+1 x DS1307 RTC module
+1 x normally-closed mechanical lid limit switch
+4 x 100 nF ceramic sensor bypass capacitors
+
+OUTPUT CONTROL
+
+2 x fan MOSFET/driver modules for circulation fans
+1 x PWM MOSFET/driver module for the exhaust fan
+1 x high-current PWM MOSFET/driver module for the PTC heater
+1 x relay/MOSFET/SSR driver suitable for the humidifier
+1 x relay/MOSFET/motor driver suitable for the egg-turning motor
+1 x regulated 5 V servo for the exhaust vent
+
+If a bare logic-level N-channel MOSFET is used instead of a driver module:
+
+1 x 100-220 ohm resistor in series with each MOSFET gate
+1 x 10 kOhm resistor from each MOSFET gate to source/GND
+1 x correctly rated flyback diode for each inductive motor or relay coil
+1 x correctly sized heatsink for each high-current MOSFET
+
+POWER AND PROTECTION
+
+Regulated ESP32 USB/5 V supply
+Regulated 5 V servo supply
+Correct external DC supply for the heater, fans, humidifier, and motor
+One correctly rated fuse for the heater circuit
+One correctly rated fuse for each other high-current supply branch
+One independent thermal fuse or thermostat in series with the PTC heater
+One 470-1000 uF electrolytic capacitor near the servo connector
+One 100 nF ceramic capacitor near the servo connector
+Screw terminals and wire rated for the actual load current
+
+Load current calculation:
+
+Current in amps = Load power in watts / Supply voltage
+
+Example: 100 W / 12 V = 8.3 A. Select the fuse, wire, terminal, MOSFET,
+heatsink, and supply for the real continuous and startup current. Do not choose
+a fuse only from this example.
+
+
+2B. COMPLETE LOW-VOLTAGE BLOCK DIAGRAM
+--------------------------------------
+
+This diagram is for low-voltage DC loads only.
+
+                              +----------------------+
+                              |        ESP32         |
+                              |                      |
+ Air-intake DHT22 DATA -------| GPIO 4               |
+ Egg-zone DHT22 DATA ---------| GPIO 5               |
+ Egg DS18B20 DATA ------------| GPIO 16              |
+ PTC DS18B20 DATA ------------| GPIO 17              |
+ Lid NC switch ---------------| GPIO 19              |
+ RTC SDA ---------------------| GPIO 21              |
+ RTC SCL ---------------------| GPIO 22              |
+                              |                      |
+ Vent servo signal -----------| GPIO 13              |
+ Egg-turner driver IN --------| GPIO 14              |
+ Fan 1 driver IN -------------| GPIO 25              |
+ Fan 2 driver IN -------------| GPIO 26              |
+ Exhaust PWM driver IN -------| GPIO 27              |
+ Heater PWM driver IN --------| GPIO 32              |
+ Humidifier driver IN --------| GPIO 33              |
+                              |                      |
+ Sensor VCC ------------------| 3.3 V                |
+ All signal grounds ----------| GND                  |
+                              +----------------------+
+
+SENSOR POWER BUS
+
+ ESP32 3.3 V ----+---- DHT22 intake VCC
+                 +---- DHT22 egg-zone VCC
+                 +---- DS18B20 egg VCC
+                 +---- DS18B20 PTC VCC
+                 +---- RTC VCC when the module supports 3.3 V
+
+ ESP32 GND ------+---- all sensor GND wires
+                 +---- lid switch NC return
+                 +---- all non-isolated driver signal grounds
+
+LOAD POWER BUS
+
+ External supply + ---- fuse ----+---- heater/fan/motor/load positive
+ External supply - --------------+---- driver power ground
+                                  +---- ESP32 GND for non-isolated drivers
+
+Never connect external load voltage to an ESP32 GPIO pin.
+
+
+2C. RESISTOR AND CAPACITOR MAP
+------------------------------
+
+DHT22 intake pull-up:
+
+ ESP32 3.3 V ---- 4.7-10 kOhm ----+---- GPIO 4
+                                  |
+                                  +---- DHT22 intake DATA
+
+DHT22 egg-zone pull-up:
+
+ ESP32 3.3 V ---- 4.7-10 kOhm ----+---- GPIO 5
+                                  |
+                                  +---- DHT22 egg DATA
+
+Egg DS18B20 pull-up:
+
+ ESP32 3.3 V ---- 4.7 kOhm -------+---- GPIO 16
+                                  |
+                                  +---- Egg DS18B20 DATA
+
+PTC DS18B20 pull-up:
+
+ ESP32 3.3 V ---- 4.7 kOhm -------+---- GPIO 17
+                                  |
+                                  +---- PTC DS18B20 DATA
+
+Sensor bypass capacitor, one per sensor:
+
+ Sensor VCC --------+
+                    | |
+                 100 nF
+                    | |
+ Sensor GND --------+
+
+Bare MOSFET gate resistors:
+
+ ESP32 GPIO ---- 100-220 ohm ---- MOSFET Gate
+                                      |
+                                   10 kOhm
+                                      |
+ MOSFET Source / GND -----------------+
+
+PC817 optocoupler input for GPIO 33:
+
+ GPIO 33 ---- 330-470 ohm ---- PC817 input LED anode
+ ESP32 GND ------------------- PC817 input LED cathode
+
+Servo supply filtering:
+
+ Servo 5 V ----+---- Servo VCC
+               |
+               +---- 470-1000 uF ---- Servo GND
+               |
+               +---- 100 nF --------- Servo GND
+
+Do not add another pull-up when a sensor module already includes the correct
+pull-up and the resulting parallel resistance would be too low.
+
+
+3. SENSOR WIRING
+----------------
+
+AIR-INTAKE DHT22, GPIO 4
+
+VCC  -> ESP32 3.3 V
+DATA -> ESP32 GPIO 4
+GND  -> ESP32 GND
+
+ ESP32 3.3 V ---------------- DHT22 VCC
+ ESP32 GPIO 4 --------------- DHT22 DATA
+ ESP32 GND ------------------ DHT22 GND
+       3.3 V -- 4.7-10 kOhm -- GPIO 4
+
+This sensor measures outside/incoming air temperature and humidity. It is an
+environmental reference and humidity fallback.
+
+EGG-ZONE DHT22, GPIO 5
+
+VCC  -> ESP32 3.3 V
+DATA -> ESP32 GPIO 5
+GND  -> ESP32 GND
+
+ ESP32 3.3 V ---------------- DHT22 VCC
+ ESP32 GPIO 5 --------------- DHT22 DATA
+ ESP32 GND ------------------ DHT22 GND
+       3.3 V -- 4.7-10 kOhm -- GPIO 5
+
+This sensor measures air temperature and humidity around the eggs. Its
+humidity is the main chamber humidity measurement. Its temperature is a slow
+cross-check for the egg-zone DS18B20.
+
+For each bare four-pin DHT22, looking at the front grille with pins down:
+
+Pin 1 -> 3.3 V
+Pin 2 -> DATA
+Pin 3 -> Not connected
+Pin 4 -> GND
+
+Add one 4.7 kOhm to 10 kOhm resistor between DATA and 3.3 V for each bare
+DHT22. A three-pin DHT22 module may already contain this resistor; follow the
+VCC, DATA/S, and GND labels printed on the module.
+
+EGG-ZONE DS18B20, GPIO 16
+
+VCC/Red    -> ESP32 3.3 V
+DATA       -> ESP32 GPIO 16
+GND/Black  -> ESP32 GND
+4.7 kOhm resistor between GPIO 16 and 3.3 V
+
+ ESP32 3.3 V ---------------- DS18B20 VCC
+ ESP32 GPIO 16 -------------- DS18B20 DATA
+ ESP32 GND ------------------ DS18B20 GND
+       3.3 V -- 4.7 kOhm ---- GPIO 16
+
+Place this probe at egg-center height without touching an egg, wall, heater,
+or humidifier mist. This is the main temperature used by heater PWM control.
+
+PTC-HEATER DS18B20, GPIO 17
+
+VCC/Red    -> ESP32 3.3 V
+DATA       -> ESP32 GPIO 17
+GND/Black  -> ESP32 GND
+4.7 kOhm resistor between GPIO 17 and 3.3 V
+
+ ESP32 3.3 V ---------------- DS18B20 VCC
+ ESP32 GPIO 17 -------------- DS18B20 DATA
+ ESP32 GND ------------------ DS18B20 GND
+       3.3 V -- 4.7 kOhm ---- GPIO 17
+
+Attach this probe firmly to the PTC heater with a heat-rated clamp or suitable
+heat-resistant material. The firmware reduces heater PWM from 50 C to 60 C
+and forces the heater OFF at 60 C.
+
+Waterproof DS18B20 cable colors are not guaranteed. Verify the seller's
+pinout before applying power.
+
+
+4. RTC AND LID SWITCH
+---------------------
+
+DS1307 RTC
+
+RTC VCC -> ESP32 3.3 V
+RTC GND -> ESP32 GND
+RTC SDA -> ESP32 GPIO 21
+RTC SCL -> ESP32 GPIO 22
+
+ ESP32 3.3 V ---------------- RTC VCC
+ ESP32 GND ------------------ RTC GND
+ ESP32 GPIO 21 -------------- RTC SDA
+ ESP32 GPIO 22 -------------- RTC SCL
+
+The expected I2C address is 0x68. Do not allow RTC pull-up resistors to pull
+SDA or SCL to 5 V.
+
+NORMALLY-CLOSED LID SWITCH
+
+GPIO 19 -> switch COM
+GND     -> switch NC
+
+ ESP32 GPIO 19 -------- COM [ limit switch ] NC -------- ESP32 GND
+
+ Lid closed  : COM touches NC, GPIO 19 reads LOW
+ Lid open    : COM leaves NC, GPIO 19 reads HIGH
+ Broken wire : GPIO 19 reads HIGH and the firmware treats the lid as open
+
+Lid closed means COM and NC are connected. Lid open, a disconnected wire, or
+a failed switch is treated as an open lid. Heater, humidifier, and egg turner
+are then disabled. Heater tests require the lid switch to report CLOSED.
+
+
+5. OUTPUT DRIVER WIRING
+-----------------------
+
+The signal side and load side are different. The ESP32 connects only to the
+driver input. The fan, heater, motor, or humidifier connects to the driver's
+load output.
+
+GENERAL DRIVER SIGNAL CONNECTION
+
+ ESP32 GPIO -------- Driver IN / PWM / TRIG
+ ESP32 GND --------- Driver signal GND
+
+Never connect a driver LOAD/OUT terminal to an ESP32 GPIO.
+
+CIRCULATION FAN 1
+
+GPIO 25 -> Fan 1 MOSFET/driver signal input
+ESP GND -> Driver signal GND
+Fan     -> External supply through the driver load terminals
+
+Typical low-side fan driver:
+
+ External supply + -------------------------- Fan +
+ Fan - ------------------------------- Driver LOAD-/OUT-
+ External supply - -------------------- Driver power GND
+ ESP32 GND ---------------------------- Driver signal GND
+ ESP32 GPIO 25 ------------------------ Driver IN
+
+Typical bare logic-level N-channel MOSFET:
+
+ GPIO 25 ---- 100-220 ohm ---- Gate
+                              |
+                            10 kOhm
+                              |
+ GND ----------------------- Source
+ Fan - --------------------- Drain
+ Fan + ---- fuse ----------- Supply +
+ Supply - ------------------ GND
+
+For an inductive brushed motor, place a correctly rated flyback diode across
+the motor: diode stripe/cathode to motor positive, anode to motor negative.
+
+CIRCULATION FAN 2
+
+GPIO 26 -> Fan 2 MOSFET/driver signal input
+ESP GND -> Driver signal GND
+Fan     -> External supply through the driver load terminals
+
+Use the same circuit as Fan 1, but connect the control input to GPIO 26.
+
+EXHAUST FAN
+
+GPIO 27 -> Exhaust MOSFET driver PWM/TRIG input
+ESP GND -> Driver signal GND
+Fan     -> External supply through the driver load terminals
+
+The exhaust output is 1 kHz PWM. The exhaust vent servo opens whenever exhaust
+PWM is above 0% and closes when exhaust PWM returns to 0%.
+
+Exhaust fan diagram:
+
+ GPIO 27 -------------------- Driver PWM/TRIG
+ ESP32 GND ------------------ Driver signal GND
+ Supply + ---- fuse --------- Exhaust fan +
+ Exhaust fan - -------------- Driver switched output
+ Supply - ------------------- Driver power GND
+
+PTC HEATER
+
+GPIO 32       -> Heater MOSFET driver PWM/TRIG input
+ESP GND       -> Driver signal GND
+Supply +      -> Fuse -> PTC heater +
+PTC heater -  -> Driver switched load output
+Supply -      -> Driver power GND
+
+Use a MOSFET driver rated above the heater's continuous current. GPIO 32 is a
+1 kHz PWM signal, not a heater power output.
+
+PTC heater diagram:
+
+ GPIO 32 -------------------- Heater driver PWM/TRIG
+ ESP32 GND ------------------ Heater driver signal GND
+
+ Supply + ---- heater fuse ---- thermal cutoff ---- PTC heater +
+ PTC heater - ------------------------------------- Driver LOAD-/OUT-
+ Supply - ----------------------------------------- Driver power GND
+
+The independent thermal cutoff must physically sense the heater and must work
+when the ESP32 is disconnected or crashed.
+
+HUMIDIFIER
+
+GPIO 33 -> Humidifier relay/MOSFET/SSR control input
+ESP GND -> Driver signal GND when the driver is not isolated
+
+An optocoupler alone cannot power a humidifier. The optocoupler must drive a
+correctly rated relay, MOSFET, or SSR. Use a 330-470 ohm resistor in series
+with a basic PC817 input LED when driven from 3.3 V.
+
+Low-voltage humidifier with a non-isolated MOSFET module:
+
+ GPIO 33 -------------------- Driver IN
+ ESP32 GND ------------------ Driver signal GND
+ Supply + ---- fuse --------- Humidifier +
+ Humidifier - --------------- Driver switched output
+ Supply - ------------------- Driver power GND
+
+PC817 plus a separate load driver:
+
+ GPIO 33 -- 330-470 ohm -- PC817 LED anode
+ ESP GND ----------------- PC817 LED cathode
+
+ Isolated supply + -- 10 kOhm --+---- Load driver input
+                                |
+ PC817 collector ---------------+
+ PC817 emitter ----------------- Isolated supply GND
+
+The PC817 output normally inverts the signal in this example. Use a driver
+circuit that gives the required fail-safe OFF state. Do not connect a
+humidifier directly to the PC817 output.
+
+EGG TRAY ROLLER
+
+GPIO 14 -> Motor relay/driver signal input
+ESP GND -> Driver signal GND
+Motor   -> External motor supply through the driver
+
+Use flyback protection for a DC motor or mechanical relay coil.
+
+Egg-turner motor diagram:
+
+ GPIO 14 -------------------- Motor driver/relay IN
+ ESP32 GND ------------------ Driver signal GND
+ Supply + ---- fuse --------- Motor/relay load +
+ Motor/relay load - --------- Driver switched output
+ Supply - ------------------- Driver power GND
+
+For a bare relay coil, connect a flyback diode directly across the coil:
+
+ Relay coil + ---------------- Diode cathode/stripe
+ Relay coil - ---------------- Diode anode
+
+EXHAUST VENT SERVO
+
+GPIO 13 -> Servo signal
+Servo VCC -> External regulated 5 V
+Servo GND -> External 5 V supply GND
+ESP GND   -> External 5 V supply GND
+
+Do not power the servo from ESP32 3.3 V. The servo closes at approximately 10
+degrees and opens at approximately 90 degrees.
+
+Servo diagram:
+
+ ESP32 GPIO 13 ---------------- Servo signal
+ External regulated 5 V ------- Servo VCC
+ External supply GND ---------- Servo GND
+ ESP32 GND -------------------- External supply GND
+
+                             +---- 470-1000 uF ----+
+ Servo 5 V ------------------+                     +---- Servo GND
+                             +---- 100 nF ---------+
+
+
+6. COMMON GROUND
+----------------
+
+For non-isolated low-voltage drivers, connect these grounds together:
+
+ESP32 GND
+Fan supply negative
+Heater supply negative
+Servo supply negative
+Egg-turner driver ground
+Humidifier driver signal ground
+
+Do not connect grounds across a genuinely isolated optocoupler barrier unless
+the selected driver circuit specifically requires it.
+
+
+7. FIRST POWER-ON AND SENSOR TEST
+---------------------------------
+
+1. Disconnect every output driver and load.
+2. Connect only the ESP32 by USB.
+3. Upload the normal incubator firmware.
+4. Confirm GPIO 14, 25, 26, 27, 32, and 33 are approximately 0 V.
+5. Power off.
+6. Connect the two DHT22 sensors and two DS18B20 sensors.
+7. Power on and open the serial monitor.
+8. Confirm neither DS18B20 shows -127 C or 85 C.
+9. Confirm both DHT22 sensors show real temperature and humidity.
+10. Connect the RTC and lid switch only after all temperature sensors work.
+
+Serial monitor command:
+
+pio device monitor --port COM5 --baud 115200
+
+Close the serial monitor with Ctrl+C before uploading firmware.
+
+
+8. HARDWARE CONNECTIONS APP TEST
+--------------------------------
+
+The Hardware connections page uses a boot-specific test session. Old Firebase
+commands are ignored after an ESP restart. Every output starts OFF after boot.
+
+1. Start the ESP32 and wait until the app says ESP32 ONLINE.
+2. Open Hardware connections.
+3. Verify all switches and sliders are OFF/0%.
+4. Enable hardware test mode.
+5. Test only one output at a time.
+6. Press ALL OFF before moving to the next output.
+7. Leaving the page also sends ALL OFF.
+
+FAN 1 TEST
+
+1. Leave loads disconnected for the first voltage test.
+2. Turn Circulation fan 1 ON.
+3. Measure GPIO 25 to ESP32 GND: approximately 3.3 V.
+4. Turn it OFF: approximately 0 V.
+5. Connect the driver and fan only after this passes.
+
+FAN 2 TEST
+
+Repeat the same steps on GPIO 26.
+
+EXHAUST AND SERVO TEST
+
+1. Move the exhaust PWM slider above 0%.
+2. GPIO 27 should output PWM.
+3. The exhaust fan should run.
+4. The vent servo should move toward 90 degrees.
+5. Return the slider to 0%; fan stops and servo closes near 10 degrees.
+
+HEATER TEST
+
+The heater slider is intentionally blocked unless:
+
+Lid switch is CLOSED
+Egg DS18B20 on GPIO 16 is valid
+PTC DS18B20 on GPIO 17 is valid
+At least one DHT22 humidity value is valid
+No hardware fault is latched
+No incubation cycle is active
+
+1. Test GPIO 32 with a multimeter before connecting the heater.
+2. Start at 5-10% PWM.
+3. Confirm PTC temperature rises slowly.
+4. Confirm PWM is reduced as PTC temperature approaches 50-60 C.
+5. Never perform the first heater test unattended.
+
+HUMIDIFIER TEST
+
+1. Keep the heater OFF.
+2. Turn the humidifier ON briefly.
+3. Confirm GPIO 33 changes from 0 V to approximately 3.3 V.
+4. Confirm egg-zone humidity begins increasing after the normal sensor delay.
+5. Keep both DHT22 sensors away from direct mist.
+
+EGG TURNER TEST
+
+1. Remove eggs.
+2. Turn Egg tray roller ON briefly.
+3. Confirm GPIO 14 changes to approximately 3.3 V.
+4. Check direction, mechanical stops, and current before a long test.
+
+MAINTAIN ATMOSPHERE TEST
+
+Use this only with an empty incubator.
+
+1. Enter a target temperature and target humidity.
+2. Press Start maintain test.
+3. The ESP automatically controls heater PWM, humidifier, circulation fans,
+   exhaust fan, and vent servo.
+4. Watch egg temperature, egg humidity, and PTC heater temperature.
+5. Press Stop maintain test or ALL OFF when finished.
+
+
+9. AUTOMATIC INCUBATION PRIORITY
+--------------------------------
+
+Manual Hardware connections controls are for testing only. Automatic cycle or
+calibration logic has priority. Starting either mode disables manual testing.
+
+During automatic operation:
+
+Egg DS18B20 controls heater PWM.
+Egg-zone DHT22 controls chamber humidity.
+Intake DHT22 reports incoming air and provides degraded humidity fallback.
+PTC DS18B20 limits heater temperature.
+Circulation fans mix chamber air.
+Exhaust fan and vent remove excess heat/humidity.
+Egg turning stops at the configured lockdown day.
+The app requests replacement of the roller tray with the hatching tray.
+
+
+10. BUILD, UPLOAD, AND APP COMMANDS
+-----------------------------------
+
+Build firmware:
+
+pio run -e nodemcu-32s
+
+Upload firmware:
+
+pio run -e nodemcu-32s --target upload --upload-port COM5
+
+If upload stays at Connecting, hold BOOT, start upload, and release BOOT when
+Writing at appears.
+
+Run Flutter app:
+
+Set-Location -LiteralPath "C:\SmartIncubator\app"
+flutter run -d emulator-5554
+
+Build an icon-safe debug APK:
+
+flutter build apk --debug --no-tree-shake-icons
+
+
+11. TROUBLESHOOTING
+-------------------
+
+OUTPUT BLINKS OR DOES NOT FOLLOW APP
+
+Confirm test telemetry reports firmware build:
+
+2026-08-11-output-test-v6
+
+Restart the app after firmware upload. The app must receive the new
+testSessionId before a switch can send commands. Old commands are ignored.
+
+FAN RUNS WHEN GPIO IS 0 V
+
+The driver is active-low or the load is wired around the switched output.
+Check the driver documentation and load terminals.
+
+DS18B20 SHOWS -127 C
+
+The probe is disconnected, wired incorrectly, or missing its 4.7 kOhm pull-up.
+
+DS18B20 SHOWS 85 C
+
+The conversion was not completed or the probe has a wiring/power problem.
+
+DHT22 SHOWS NULL/NAN
+
+Check 3.3 V, GND, DATA pin, pin orientation, and pull-up resistor. Allow at
+least two seconds between readings.
+
+ESP RESTARTS OR BECOMES HOT
+
+Disconnect all external hardware immediately. Test with USB only. Reversed
+power, a short, or external voltage entering a GPIO can damage the ESP32.
+
+RTC FREEZES STARTUP
+
+Check SDA/SCL polarity and ensure neither line is pulled to 5 V or GND. The RTC
+must appear at I2C address 0x68.
+
+
+12. REQUIRED EMPTY-INCUBATOR VALIDATION
+---------------------------------------
+
+Before adding eggs:
+
+1. Run empty for 48 continuous hours.
+2. Compare readings with a trusted calibrated thermometer/hygrometer.
+3. Check temperatures at the center and all tray corners.
+4. Verify lid opening forces heater/humidifier/turner OFF.
+5. Disconnect each sensor one at a time and confirm safe shutdown.
+6. Verify PTC overtemperature derating and the independent thermal cutoff.
+7. Test power failure and restart behavior.
+8. Test the full setting-to-hatching tray transition without eggs.
+
+Do not trust the incubator with eggs until every test in this guide passes.
